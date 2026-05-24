@@ -23,15 +23,26 @@ def clientThread(client):
             data = client.recv(1024)
             if not data:
                 break
-            print(usernames[clients.index(client)] + ": " + data.decode())
-            if data.decode().split(" ")[0] == "/msg":
-                recipient = clients[usernames.index(data.decode().split(" ")[1])]
-                privatemsg = f"(private message from: {usernames[clients.index(client)]})"
-                recipient.send((privatemsg + " "+ data.decode().split(" ")[2]).encode())
+            decoded = data.decode()
+            sender = usernames[clients.index(client)]
+
+            if decoded.startswith("/msg"):
+                parts = decoded.split(" ", 2)
+                if len(parts) < 3:
+                    client.send(b"Usage: /msg <username> <message>\n")
+                elif parts[1] == sender:
+                    client.send(b"You cannot message yourself.\n")
+                elif parts[1] not in usernames:
+                    client.send(f"User '{parts[1]}' not found.\n".encode())
+                else:
+                    recipient = clients[usernames.index(parts[1])]
+                    recipient.send(f"(PM from {sender}): {parts[2]}".encode())
+                    print(f"(PM) {sender} -> {parts[1]}: {parts[2]}")
             else:
-                for c in clients:
-                    if c != client:
-                        c.send((usernames[clients.index(client)] + ": ").encode() + data)
+                print(f"{sender}: {decoded}")
+                recipients = [c for c in clients if c != client]
+                for c in recipients:
+                    c.send(f"{sender}: ".encode() + data)
 
         except (ConnectionResetError, ConnectionAbortedError, OSError):
             break
