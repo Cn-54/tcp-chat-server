@@ -38,6 +38,10 @@ def clientThread(client):
                     recipient = clients[usernames.index(parts[1])]
                     recipient.send(f"(PM from {sender}): {parts[2]}".encode())
                     print(f"(PM) {sender} -> {parts[1]}: {parts[2]}")
+            elif decoded.startswith("/list"):
+                client.send("--- User List ---".encode())
+                for i,user in enumerate(usernames):
+                    client.send((f"{i}: {user}\n").encode())
             else:
                 print(f"{sender}: {decoded}")
                 recipients = [c for c in clients if c != client]
