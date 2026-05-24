@@ -38,10 +38,28 @@ def clientThread(client):
                     recipient = clients[usernames.index(parts[1])]
                     recipient.send(f"(PM from {sender}): {parts[2]}".encode())
                     print(f"(PM) {sender} -> {parts[1]}: {parts[2]}")
+
             elif decoded.startswith("/list"):
                 client.send("--- User List ---".encode())
                 for i,user in enumerate(usernames):
                     client.send((f"{i}: {user}\n").encode())
+            
+            elif decoded.startswith("/nick"):
+                client.send("choose a new username:".encode())
+                set = False
+                while not set:
+                    newUsername = client.recv(1024).decode()
+                    if newUsername != None and usernames.count(newUsername) < 1:
+                        print(f"{sender} has changed their name to {newUsername}!")
+                        recipients = [c for c in clients if c != client]
+                        for c in recipients:
+                            c.send(f"{sender} has changed their username to {newUsername}".encode())
+                        client.send("username changed succesfully".encode())
+                        usernames[clients.index(client)] = newUsername
+                        set = True
+                    else:
+                        client.send("username exists already\n please choose something else".encode())
+                        
             else:
                 print(f"{sender}: {decoded}")
                 recipients = [c for c in clients if c != client]
