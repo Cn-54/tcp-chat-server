@@ -26,7 +26,7 @@ while True:
     message = input()
     if message.lower() == 'q':
         break
-    to_send = f"{message}"
+    to_send = message
     s.send(to_send.encode())
 
 s.close()   

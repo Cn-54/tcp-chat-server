@@ -24,9 +24,14 @@ def clientThread(client):
             if not data:
                 break
             print(usernames[clients.index(client)] + ": " + data.decode())
-            for c in clients:
-                if c != client:
-                    c.send((usernames[clients.index(client)] + ": ").encode() + data)
+            if data.decode().split(" ")[0] == "/msg":
+                recipient = clients[usernames.index(data.decode().split(" ")[1])]
+                privatemsg = f"(private message from: {usernames[clients.index(client)]})"
+                recipient.send((privatemsg + " "+ data.decode().split(" ")[2]).encode())
+            else:
+                for c in clients:
+                    if c != client:
+                        c.send((usernames[clients.index(client)] + ": ").encode() + data)
 
         except (ConnectionResetError, ConnectionAbortedError, OSError):
             break
