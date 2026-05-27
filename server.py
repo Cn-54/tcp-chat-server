@@ -9,12 +9,16 @@ s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 host = '127.0.0.1'
 port = 4444
 
-clients = []
-usernames = []
+clients = {}
 
 s.bind((host,port))
 s.listen(10)
 
+def get_client_by_username(username):
+    for c in clients:
+        if clients[c]["username"] == username:
+            return c
+    return None
 
 def clientThread(client):
     sendmessage = "you are now connected\ntype and press enter to start chatting\nenter /commands for a list of commands and their uses\n"
@@ -25,37 +29,42 @@ def clientThread(client):
             if not data:
                 break
             decoded = data.decode()
-            sender = usernames[clients.index(client)]
-
+            sender = clients[client]["username"]
             if decoded.startswith("/msg"):
                 parts = decoded.split(" ", 2)
                 if len(parts) < 3:
                     client.send(b"Usage: /msg <username> <message>\n")
                 elif parts[1] == sender:
                     client.send(b"You cannot message yourself.\n")
-                elif parts[1] not in usernames:
+                elif get_client_by_username(parts[1]) is None:
                     client.send(f"User '{parts[1]}' not found.\n".encode())
                 else:
-                    recipient = clients[usernames.index(parts[1])]
+                    recipient = get_client_by_username(parts[1])
                     recipient.send(f"(PM from {sender}): {parts[2]}".encode())
                     print(f"(PM) {sender} -> {parts[1]}: {parts[2]}")
 
             elif decoded.startswith("/list"):
-                client.send("--- User List ---".encode())
-                for i,user in enumerate(usernames):
-                    client.send((f"{i}: {user}\n").encode())
+                client.send("--- User List ---\n".encode())
+
+                for i, c in enumerate(clients):
+                    user = clients[c]["username"]
+                    client.send(f"{i}: {user}\n".encode())
             
             elif decoded.startswith("/nick"):
                 parts = decoded.split(" ", 1)
                 if len(parts) > 1:
-                    newUsername = parts[1]
-                    if usernames.count(newUsername) < 1:
-                        print(f"{sender} has changed their name to {newUsername}!")
+                    found = False
+                    for c in clients:
+                        if clients[c]["username"] == parts[1]:
+                            found = True
+                            break
+                    if not found:
+                        print(f"{sender} has changed their name to {parts[1]}!")
                         recipients = [c for c in clients if c != client]
                         for c in recipients:
-                            c.send(f"{sender} has changed their username to {newUsername}".encode())
+                            c.send(f"{sender} has changed their username to {parts[1]}".encode())
                         client.send("username changed succesfully".encode())
-                        usernames[clients.index(client)] = newUsername
+                        clients[client]["username"] = parts[1]
                     else:
                         client.send("enter a unique username!".encode())
                 else:
@@ -85,11 +94,9 @@ def clientThread(client):
         except (ConnectionResetError, ConnectionAbortedError, OSError):
             break
 
-    idx = clients.index(client)
-    message = f"{usernames[idx]} has disconnected."
+    message = f"{clients[client]["username"]} has disconnected."
     print(message)
-    clients.remove(client)
-    usernames.pop(idx)
+    del clients[client]
     for c in clients:
         c.send(message.encode())
     client.close()
@@ -104,7 +111,9 @@ while True:
     for client in clients:
         client.send(message.encode())
 
-    clients.append(c)
-    usernames.append(username)
+    clients[c] = {
+        "username": username
+    }
+
 
     threading.Thread(target=clientThread, args=(c,), daemon=True).start()
