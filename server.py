@@ -1,3 +1,4 @@
+from datetime import datetime
 import socket
 import threading
 
@@ -16,7 +17,7 @@ s.listen(10)
 
 
 def clientThread(client):
-    sendmessage = "you are now connected\n type and press enter to start chatting\n"
+    sendmessage = "you are now connected\ntype and press enter to start chatting\nenter /commands for a list of commands and their uses\n"
     client.send(sendmessage.encode())
     while True:
         try:
@@ -45,26 +46,41 @@ def clientThread(client):
                     client.send((f"{i}: {user}\n").encode())
             
             elif decoded.startswith("/nick"):
-                client.send("choose a new username:".encode())
-                set = False
-                while not set:
-                    newUsername = client.recv(1024).decode()
-                    if newUsername != None and usernames.count(newUsername) < 1:
+                parts = decoded.split(" ", 1)
+                if len(parts) > 1:
+                    newUsername = parts[1]
+                    if usernames.count(newUsername) < 1:
                         print(f"{sender} has changed their name to {newUsername}!")
                         recipients = [c for c in clients if c != client]
                         for c in recipients:
                             c.send(f"{sender} has changed their username to {newUsername}".encode())
                         client.send("username changed succesfully".encode())
                         usernames[clients.index(client)] = newUsername
-                        set = True
                     else:
-                        client.send("username exists already\n please choose something else".encode())
-                        
+                        client.send("enter a unique username!".encode())
+                else:
+                        client.send("enter a valid username".encode())
+
+            elif decoded.startswith("/commands"):
+                client.send("/msg:\n" \
+                "Usage: /msg <username> <message>\n" \
+                "Description: sends a private message to the specified user".encode())
+
+                client.send("/list:\n" \
+                "Usage: /list\n" \
+                "Description: Gives the user a list of all users currently connected".encode())
+
+                client.send("/nick:\n" \
+                    "Usage: /nick <username>\n" \
+                    "Description: changes your username to the unique username specified".encode())
+
             else:
-                print(f"{sender}: {decoded}")
+                time = datetime.now().strftime("%H:%M:%S")
+                message = f"[{time}] {sender}: {decoded}"
+                print(message)
                 recipients = [c for c in clients if c != client]
                 for c in recipients:
-                    c.send(f"{sender}: ".encode() + data)
+                    c.send(message.encode())
 
         except (ConnectionResetError, ConnectionAbortedError, OSError):
             break
