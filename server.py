@@ -117,19 +117,27 @@ def doWhere(client):
     else:
         client.send(f"You are currently in room: {room}".encode())
 
-commands = {
-    "message": doPM,
-    "list": doList,
-    "nick": doNick,
-    "command": doCommand,
-    "create": doCreateRoom,
-    "leave": doLeaveRoom,
-    "whoami": doWhoami,
-    "where": doWhere
-}
+def doJoin(decoded, client):
+    parts = decoded.split(" ", 1)
+    if len(parts) < 2:
+        client.send(b"Usage: /join <room name>\n")
+        return
+    if parts[1] in rooms:
+        moveClientToRoom(client, parts[1])
+        client.send(f"Joined room: {parts[1]}\n".encode())
+        sendMessagetoRoom(parts[1], f"{clients[client]['username']} has joined the room!", client)
+    else:
+        client.send(b"Room not found\n")
 
-s.bind((host,port))
-s.listen(10)
+def doRooms(client):
+    if not rooms:
+        client.send(b"No rooms currently exist.\n")
+        return
+    client.send(b"--- Rooms ---\n")
+    for name, room in rooms.items():
+        owner = clients[room["owner"]]["username"]
+        count = len(room["clients"])
+        client.send(f"{name} | {count} users | owner: {owner}\n".encode())
 
 def get_client_by_username(username):
     for c in clients:
@@ -156,6 +164,25 @@ def sendMessagetoRoom(room,message,sender=None):
 
 def doesRoomExist(name):
     return name in rooms
+
+commands = {
+    "message": doPM,
+    "list": doList,
+    "nick": doNick,
+    "command": doCommand,
+    "create": doCreateRoom,
+    "leave": doLeaveRoom,
+    "whoami": doWhoami,
+    "where": doWhere,
+    "join": doJoin,
+    "rooms": doRooms
+    
+}
+
+s.bind((host,port))
+s.listen(10)
+
+
 
 def clientThread(client):
     client.send("you are now connected\ntype and press enter to start chatting\nenter /commands for a list of commands and their uses\n".encode())
@@ -184,6 +211,10 @@ def clientThread(client):
                 commands["create"](decoded,client)
             elif decoded.startswith("/leave"):
                 commands["leave"](client)
+            elif decoded.startswith("/join"):
+                commands["join"](decoded,client)
+            elif decoded.startswith("/rooms"):
+                commands["rooms"](client)
             else:
                 time = datetime.now().strftime("%H:%M:%S")
                 message = f"[{time}] {sender}: {decoded}"
